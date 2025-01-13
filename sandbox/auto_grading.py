@@ -1,4 +1,4 @@
-with open(file="/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/score.txt", mode="r") as f:
+with open(file="../src/score.txt", mode="r") as f:
     score_agent = float(f.readline())
     score_agent_dr = float(f.readline())
     

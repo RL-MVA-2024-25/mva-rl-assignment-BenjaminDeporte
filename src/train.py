@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 import os, sys
 # print(os.getcwd())
-sys.path.append('lib/networks.py')
+# sys.path.append('networks.py')
 
 # from DQN import DQN
 
@@ -142,7 +142,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class ProjectAgent:
     """ DDQN Agent"""
     
-    model_path = 'modeles/model.pth'
+    model_path = '../modeles/model.pth'
     # nb_actions = 4 # number of possible actions, hard coded, we know it
     
     def _greedy_action(self, s):

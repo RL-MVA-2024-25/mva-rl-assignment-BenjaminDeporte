@@ -162,7 +162,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class ProjectAgent:
     """ DDQN Agent"""
     
-    model_path = os.getcwd() + '/src/model.pth'
+    model_path = os.getcwd() + '/model.pth'
     # nb_actions = 4 # number of possible actions, hard coded, we know it
     
     def _greedy_action(self, s):

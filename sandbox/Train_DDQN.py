@@ -19,7 +19,7 @@ import numpy as np
 
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
-from fast_env import FastHIVPatient # merci Clement
+# from fast_env import FastHIVPatient # merci Clement
 
 # import random
 from tqdm import tqdm
@@ -192,15 +192,6 @@ class ddqn_agent:
                         print(f"=> saving model with average perf {best_avg_reward:.2e} over last {self.average_episodes} episodes")
                         torch.save(self.model.state_dict(), self.ddqn_savepath)
                 
-                # save intermediate models at regular intervals, just in case ------
-                # if episode % self.save_delays == 0:
-                #     print(f"saving intermediate Target Network DQN model as inter1")
-                #     torch.save(self.model.state_dict(), self.tn_dqn_inter1_savepath)
-                #     # torch.save(self.model, self.tn_dqn_inter1_savepath)
-                # if episode % self.save_delays == 1:
-                #     print(f"saving intermediate Target Network DQN model as inter2")
-                #     torch.save(self.model.state_dict(), self.tn_dqn_inter2_savepath)
-                #     # torch.save(self.model, self.tn_dqn_inter2_savepath)
             else:
                 state = next_state
                 
@@ -248,7 +239,7 @@ config = {'nb_actions': 4,
           'epsilon_decay_period': 10*200, # durée prise par epsilon pour décroître jusqu'à epsilon min, compté en steps = episodes * 200
           'epsilon_delay_decay': 10*200, # time à partir duquel epsilon commence à décroître, compté en steps = episodes * 200
           'batch_size': 1000,
-          'gradient_steps': 10, # gradient steps for the target network
+          'gradient_steps': 100, # gradient steps for the target network
           'update_target_strategy': 'replace', # or 'ema'
           'update_target_freq': 100,  # fréquence d'update du target network, en steps (rappel : 200 steps / episode)
           'update_target_tau': 0.005,
@@ -257,7 +248,7 @@ config = {'nb_actions': 4,
           }
 
 # Train agent
-MAX_EPISODES = 50
+MAX_EPISODES = 1000
 
 print(f"Training DDQN for {MAX_EPISODES:6d} episodes")
 agent = ddqn_agent(config, DQN_instance)

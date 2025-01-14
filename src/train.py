@@ -45,6 +45,8 @@ env = TimeLimit(
 # --- get GPU if there is one ------------------------------------------------------
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# for upload to Git
+device = torch.device('cpu')
 
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
@@ -187,7 +189,7 @@ class ProjectAgent:
 
     def load(self):
         # for upload to GitHub : cpu
-        device = torch.device('cpu')
+        # device = torch.device('cpu')
         
         # need to instantiate a DQN() for the torch.load to work        
         self.dqn = DQN(device=device, nb_neurons=32)

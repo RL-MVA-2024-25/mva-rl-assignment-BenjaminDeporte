@@ -19,7 +19,6 @@ import numpy as np
 
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
-# from fast_env import FastHIVPatient # merci Clement
 
 # import random
 from tqdm import tqdm
@@ -43,19 +42,16 @@ def greedy_action(network, state):
         return torch.argmax(Q).item()
     
 # ---------------------------------------------------------------------------------
-# --- DOUBLE DQN NETWORK CLASS ----------------------------------------------------
+# --- TARGET NETWORK CLASS, FROM CLASS 3 ------------------------------------------
 # ---------------------------------------------------------------------------------
 
-class ddqn_agent:
-    
-    # evaluate action from the epsilon-greedy policy via online network
-    # estimate the value function via the target network, not the online network
+class tn_dqn_agent:
     
     # tn_dqn_inter1_savepath = '/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/modeles/tn_dqn_inter1.pth'
     # tn_dqn_inter2_savepath = '/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/modeles/tn_dqn_inter2.pth'
-    ddqn_savepath = '/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/modeles/ddqn.pth'
+    tn_dqn_savepath = '/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/modeles/tn_dqn.pth'
     
-    # save_delays = 20 # saves models every N episodes, just in case
+    save_delays = 20 # saves models every N episodes, just in case
     
     def __init__(self, config, model):
         device = "cuda" if next(model.parameters()).is_cuda else "cpu"
@@ -91,44 +87,41 @@ class ddqn_agent:
     
     def gradient_step(self):
         if len(self.memory) > self.batch_size:
-            # ---- sample batch from replay buffer ---------------------
-            X, A, R, Y, D = self.memory.sample(self.batch_size)
-            # ---- get Q(s,a) from Q network ---------------------------
-            QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1)) # gather is the PyTorch version of VLookUp : we pick the q(x,a) for each (x,a) in (X,A)
-            # --- select best action in Y based on Q network values ----
-            # --- ie argmax Q(Y,a') ------------------------------------
-            Q_values = self.model(Y)
-            _, a_prime = Q_values.max(1)
-            # --- update is Q_target(Y,a') -------------------------------------         
-            QYmax = self.target_model(Y).gather(1,a_prime.unsqueeze(1)).squeeze()
+            X, A, R, Y, D = self.memory.sample(self.batch_size)  # sample batch from the replay buffer
+            QYmax = self.target_model(Y).max(1)[0].detach()  # get max q(s',a') from the target network, for all s' in the batch
+            # --- pause for the PyTorch challenged, mostly me :-)
+            # torch.addcmul(input, tensor1, tensor2, *, value=1, out=None) → Tensor
+            # Performs the element-wise multiplication of tensor1 by tensor2, multiplies the result by the scalar value and adds it to input.
+            # output = input + value * (tensor1 (*) tensor2) 
+            # --- 
             update = torch.addcmul(R, 1-D, QYmax, value=self.gamma) # compute R + self.gamma * (1-D) * QYmax, that is the update
-            # --- optimization -----
+            QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1)) # gather is the PyTorch version of VLookUp : we pick the q(x,a) for each (x,a) in (X,A)
             loss = self.criterion(QXA, update.unsqueeze(1)) # unsqueeze fait passer la shape de QXA de B à (B,1)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step() 
             
-    # def update_buffer(self, epsilon, n=10):
-    #     # runs n episodes with the current model and an epsilon greedy policy to update the buffer
-    #     for i in range(n):
-    #         s2, _ = self.patient_for_buffer.reset()
-    #         # select epsilon-greedy action -----------------------------------------
-    #         if np.random.rand() < epsilon:
-    #             a2 = self.patient_for_buffer.action_space.sample()
-    #         else:
-    #             a2 = greedy_action(self.model, s2)
-    #         # run a full episode to update the buffer
-    #         done2 = False
-    #         trunc2 = False
-    #         while done2 is False and trunc2 is False:
-    #             next_s2, r2, done2, trunc2, _ = self.patient_for_buffer.step(a2)
-    #             self.memory.append(s2, a2, r2, next_s2, done2)
-    #             s2 = next_s2
-    #             # select epsilon-greedy action -----------------------------------------
-    #             if np.random.rand() < epsilon:
-    #                 a2 = self.patient_for_buffer.action_space.sample()
-    #             else:
-    #                 a2 = greedy_action(self.model, s2)
+    def update_buffer(self, epsilon, n=10):
+        # runs n episodes with the current model and an epsilon greedy policy to update the buffer
+        for i in range(n):
+            s2, _ = self.patient_for_buffer.reset()
+            # select epsilon-greedy action -----------------------------------------
+            if np.random.rand() < epsilon:
+                a2 = self.patient_for_buffer.action_space.sample()
+            else:
+                a2 = greedy_action(self.model, s2)
+            # run a full episode to update the buffer
+            done2 = False
+            trunc2 = False
+            while done2 is False and trunc2 is False:
+                next_s2, r2, done2, trunc2, _ = self.patient_for_buffer.step(a2)
+                self.memory.append(s2, a2, r2, next_s2, done2)
+                s2 = next_s2
+                # select epsilon-greedy action -----------------------------------------
+                if np.random.rand() < epsilon:
+                    a2 = self.patient_for_buffer.action_space.sample()
+                else:
+                    a2 = greedy_action(self.model, s2)
     
     def train(self, env, max_episode):
         episode_return = []
@@ -164,7 +157,8 @@ class ddqn_agent:
             if self.update_target_strategy == 'ema':
                 target_state_dict = self.target_model.state_dict()
                 model_state_dict = self.model.state_dict()
-                tau = self.update_target_tau
+                       # if len(self.memory) < self.buffer_size:
+                #     self.update_buffer(epsilon, n=20)         tau = self.update_target_tau
                 for key in model_state_dict:
                     target_state_dict[key] = tau*model_state_dict[key] + (1-tau)*target_state_dict[key]
                 # print(f"updating target model with moving average strategy")
@@ -174,9 +168,8 @@ class ddqn_agent:
             if done or trunc:
                 # episode is done, report out my dear ------------------------------
                 episode += 1
-                state, _ = env.reset()
-                episode_cum_reward = episode_cum_reward / step * 200 # normalize reward at 200 steps
                 print(f"Episode {episode:5d}, epsilon {epsilon:6.2f}, buffer size {len(self.memory):6d}, episode return {episode_cum_reward:.1e}")
+                state, _ = env.reset()
                 episode_return.append(episode_cum_reward)
                 episode_cum_reward = 0
                 
@@ -190,8 +183,17 @@ class ddqn_agent:
                     if last_avg_reward > best_avg_reward:
                         best_avg_reward = last_avg_reward
                         print(f"=> saving model with average perf {best_avg_reward:.2e} over last {self.average_episodes} episodes")
-                        torch.save(self.model.state_dict(), self.ddqn_savepath)
+                        torch.save(self.model.state_dict(), self.tn_dqn_savepath)
                 
+                # save intermediate models at regular intervals, just in case ------
+                # if episode % self.save_delays == 0:
+                #     print(f"saving intermediate Target Network DQN model as inter1")
+                #     torch.save(self.model.state_dict(), self.tn_dqn_inter1_savepath)
+                #     # torch.save(self.model, self.tn_dqn_inter1_savepath)
+                # if episode % self.save_delays == 1:
+                #     print(f"saving intermediate Target Network DQN model as inter2")
+                #     torch.save(self.model.state_dict(), self.tn_dqn_inter2_savepath)
+                #     # torch.save(self.model, self.tn_dqn_inter2_savepath)
             else:
                 state = next_state
                 
@@ -205,9 +207,7 @@ class ddqn_agent:
 # --- ie a patient, limited to 200 steps as in evaluation ----------------------
 # ------------------------------------------------------------------------------
 
-MAX_STEPS_PER_PATIENT=200
-
-patient = TimeLimit(HIVPatient(), max_episode_steps=MAX_STEPS_PER_PATIENT)
+patient = TimeLimit(HIVPatient(), max_episode_steps=200)
 
 # --- DQN ----------------------------------------------------------------------
 
@@ -219,7 +219,7 @@ state_dim = 6
 n_action = 4
 
 # network parameters
-nb_neurons=256
+nb_neurons=32
 
 # instantiate
 DQN_instance = DQN(device=device, nb_neurons=nb_neurons)
@@ -230,16 +230,16 @@ DQN_instance = DQN(device=device, nb_neurons=nb_neurons)
 
 # DQN config
 config = {'nb_actions': 4,
-          'learning_rate': 0.01,
-          'gamma': 0.90,
+          'learning_rate': 0.001,
+          'gamma': 0.95,
           'buffer_size': 100000,
-          'load_buffer': True,
+          'load_buffer': False,
           'epsilon_min': 0.01,
           'epsilon_max': 1.,
           'epsilon_decay_period': 10*200, # durée prise par epsilon pour décroître jusqu'à epsilon min, compté en steps = episodes * 200
           'epsilon_delay_decay': 10*200, # time à partir duquel epsilon commence à décroître, compté en steps = episodes * 200
-          'batch_size': 1000,
-          'gradient_steps': 5, # gradient steps for the target network
+          'batch_size': 100,
+          'gradient_steps': 10, # gradient steps for the target network
           'update_target_strategy': 'replace', # or 'ema'
           'update_target_freq': 100,  # fréquence d'update du target network, en steps (rappel : 200 steps / episode)
           'update_target_tau': 0.005,
@@ -248,15 +248,15 @@ config = {'nb_actions': 4,
           }
 
 # Train agent
-MAX_EPISODES = 1000
+MAX_EPISODES = 100
 
-print(f"Training DDQN for {MAX_EPISODES:6d} episodes")
-agent = ddqn_agent(config, DQN_instance)
+print(f"Training Target Network DQN for {MAX_EPISODES:6d} episodes")
+agent = tn_dqn_agent(config, DQN_instance)
 scores = agent.train(patient, max_episode=MAX_EPISODES)
 
 # display results
 # print(f"scores = {scores}")
 tn_dqn_scores_savepath = '/home/benjamin.deporte/MVA/mva-rl-assignment-BenjaminDeporte/sandbox/training_scores.pkl'
 with open(tn_dqn_scores_savepath, "wb") as f:
-    print(f"saving DDQN training scores")
+    print(f"saving TN DQN training scores")
     pickle.dump(scores, f)

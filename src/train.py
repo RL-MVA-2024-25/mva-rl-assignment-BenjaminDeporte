@@ -11,31 +11,31 @@ import torch.nn.functional as F
 import os, sys
 # print(os.getcwd())
 # sys.path.append('networks.py')
-# from networks import DQN
+from networks import DQN
 from pathlib import Path
 
-class DQN(nn.Module):
-    """ok, the engine"""
+# class DQN(nn.Module):
+#     """ok, the engine"""
        
-    def __init__(self, device, nb_neurons=128, state_dim=6, action_dim=4):
-        super(DQN, self).__init__()
-        self.device = device
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        # self.bn1 = nn.BatchNorm1d(self.state_dim).to(self.device)
-        self.fc1 = nn.Linear(self.state_dim, nb_neurons).to(device)  # in : B x state_dim, out : B x nb_neurons
-        # self.bn2 = nn.BatchNorm1d(nb_neurons).to(device)
-        self.fc2 = nn.Linear(nb_neurons, nb_neurons).to(device)
-        # self.bn3 = nn.BatchNorm1d(nb_neurons).to(device)
-        self.fc3 = nn.Linear(nb_neurons, self.action_dim).to(device)
-        print(f"Instantiating MLP with {nb_neurons} neurons per layer")
+#     def __init__(self, device, nb_neurons=128, state_dim=6, action_dim=4):
+#         super(DQN, self).__init__()
+#         self.device = device
+#         self.state_dim = state_dim
+#         self.action_dim = action_dim
+#         # self.bn1 = nn.BatchNorm1d(self.state_dim).to(self.device)
+#         self.fc1 = nn.Linear(self.state_dim, nb_neurons).to(device)  # in : B x state_dim, out : B x nb_neurons
+#         # self.bn2 = nn.BatchNorm1d(nb_neurons).to(device)
+#         self.fc2 = nn.Linear(nb_neurons, nb_neurons).to(device)
+#         # self.bn3 = nn.BatchNorm1d(nb_neurons).to(device)
+#         self.fc3 = nn.Linear(nb_neurons, self.action_dim).to(device)
+#         print(f"Instantiating MLP with {nb_neurons} neurons per layer")
       
-    def forward(self, inputs):
-        # x = self.bn1(inputs.to(self.device))
-        x = F.relu(self.fc1(inputs.to(self.device)))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x).to(self.device)
-        return x
+#     def forward(self, inputs):
+#         # x = self.bn1(inputs.to(self.device))
+#         x = F.relu(self.fc1(inputs.to(self.device)))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x).to(self.device)
+#         return x
 
 env = TimeLimit(
     env=HIVPatient(domain_randomization=False), max_episode_steps=200
@@ -44,7 +44,7 @@ env = TimeLimit(
 
 # --- get GPU if there is one ------------------------------------------------------
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
@@ -108,22 +108,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ----------------------- DQN Agent ------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------
 
-# class DQN(nn.Module):
-#     """ok, the engine"""
+class DQN(nn.Module):
+    """ok, the engine"""
        
-#     def __init__(self, nb_neurons=128, device=device, state_dim=6, action_dim=4):
-#         super(DQN, self).__init__()
-#         self.state_dim = state_dim
-#         self.action_dim = action_dim
-#         self.fc1 = nn.Linear(self.state_dim, nb_neurons).to(device)  # in : B x state_dim, out : B x nb_neurons
-#         self.fc2 = nn.Linear(nb_neurons, nb_neurons).to(device)
-#         self.fc3 = nn.Linear(nb_neurons, self.action_dim).to(device)
+    def __init__(self, nb_neurons=128, device=device, state_dim=6, action_dim=4):
+        super(DQN, self).__init__()
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.fc1 = nn.Linear(self.state_dim, nb_neurons).to(device)  # in : B x state_dim, out : B x nb_neurons
+        self.fc2 = nn.Linear(nb_neurons, nb_neurons).to(device)
+        self.fc3 = nn.Linear(nb_neurons, self.action_dim).to(device)
       
-#     def forward(self, inputs):
-#         x = F.relu(self.fc1(inputs.to(device)))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x).to(device)
-#         return x
+    def forward(self, inputs):
+        x = F.relu(self.fc1(inputs.to(device)))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x).to(device)
+        return x
 
 # --------------------------------------------------------------------
 
@@ -186,6 +186,16 @@ class ProjectAgent:
         pass
 
     def load(self):
-        # need to instantiate a DQN() for the torch.load to work
+        # for upload to GitHub : cpu
+        device = torch.device('cpu')
+        
+        # need to instantiate a DQN() for the torch.load to work        
         self.dqn = DQN(device=device, nb_neurons=32)
-        self.dqn.load_state_dict(torch.load(self.model_path, weights_only=True))
+        
+        # load
+        self.dqn.load_state_dict(torch.load(self.model_path, map_location=device, weights_only=True))
+        
+        
+# device = torch.device('cpu')
+# model = TheModelClass(*args, **kwargs)
+# model.load_state_dict(torch.load(PATH, map_location=device, weights_only=True))

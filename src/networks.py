@@ -15,12 +15,16 @@ class DQN(nn.Module):
         # self.bn2 = nn.BatchNorm1d(nb_neurons).to(device)
         self.fc2 = nn.Linear(nb_neurons, nb_neurons).to(device)
         # self.bn3 = nn.BatchNorm1d(nb_neurons).to(device)
-        self.fc3 = nn.Linear(nb_neurons, self.action_dim).to(device)
+        self.fc3 = nn.Linear(nb_neurons, nb_neurons).to(device)
+        self.fc4 = nn.Linear(nb_neurons, nb_neurons).to(device)
+        self.fc5 = nn.Linear(nb_neurons, self.action_dim).to(device)
         print(f"Instantiating MLP with {nb_neurons} neurons per layer")
       
     def forward(self, inputs):
         # x = self.bn1(inputs.to(self.device))
         x = F.relu(self.fc1(inputs.to(self.device)))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x).to(self.device)
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = self.fc5(x).to(self.device)
         return x

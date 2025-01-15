@@ -205,9 +205,8 @@ class ddqn_agent:
 # --- ie a patient, limited to 200 steps as in evaluation ----------------------
 # ------------------------------------------------------------------------------
 
-MAX_STEPS_PER_PATIENT=200
 
-patient = TimeLimit(HIVPatient(), max_episode_steps=MAX_STEPS_PER_PATIENT)
+patient = TimeLimit(HIVPatient(domain_randomization=True), max_episode_steps=200)
 
 # --- DQN ----------------------------------------------------------------------
 
@@ -224,22 +223,25 @@ nb_neurons=256
 # instantiate
 DQN_instance = DQN(device=device, nb_neurons=nb_neurons)
 
+print(f"Models for Q-values :")
+print(DQN_instance)
+
 # -------------------------------------------------------------------------------------
 # ---- TRAINING LOOP ------------------------------------------------------------------
 # -------------------------------------------------------------------------------------
 
 # DQN config
 config = {'nb_actions': 4,
-          'learning_rate': 0.01,
+          'learning_rate': 0.001,
           'gamma': 0.90,
           'buffer_size': 100000,
-          'load_buffer': True,
+          'load_buffer': False,
           'epsilon_min': 0.01,
           'epsilon_max': 1.,
-          'epsilon_decay_period': 10*200, # durée prise par epsilon pour décroître jusqu'à epsilon min, compté en steps = episodes * 200
-          'epsilon_delay_decay': 10*200, # time à partir duquel epsilon commence à décroître, compté en steps = episodes * 200
+          'epsilon_decay_period': 50*200, # durée prise par epsilon pour décroître jusqu'à epsilon min, compté en steps = episodes * 200
+          'epsilon_delay_decay': 50*200, # time à partir duquel epsilon commence à décroître, compté en steps = episodes * 200
           'batch_size': 1000,
-          'gradient_steps': 5, # gradient steps for the target network
+          'gradient_steps': 100, # gradient steps for the target network
           'update_target_strategy': 'replace', # or 'ema'
           'update_target_freq': 100,  # fréquence d'update du target network, en steps (rappel : 200 steps / episode)
           'update_target_tau': 0.005,
@@ -248,9 +250,12 @@ config = {'nb_actions': 4,
           }
 
 # Train agent
-MAX_EPISODES = 1000
+MAX_EPISODES = 2000
 
 print(f"Training DDQN for {MAX_EPISODES:6d} episodes")
+print(f"Parametres :")
+print(config)
+
 agent = ddqn_agent(config, DQN_instance)
 scores = agent.train(patient, max_episode=MAX_EPISODES)
 
